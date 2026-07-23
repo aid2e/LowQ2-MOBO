@@ -10,6 +10,8 @@
 # =============================================================================
 
 import pprint
+import sys
+sys.path.append('../')
 
 from BICLowQ2 import EICTools as et
 
@@ -18,54 +20,95 @@ from BICLowQ2 import EICTools as et
 # (0) Test ConfigParser -------------------------------------------------------
 
 # these should work
-enable2 = et.GetParameter("enable_staves_2", "../configuration/parameters.config")
-enable3 = et.GetParameter("enable_staves_3", "../configuration/parameters.config")
+tag1H = et.GetParameter("tagger1_height", "../configuration/parameters.config")
+tag2W = et.GetParameter("tagger2_width", "../configuration/parameters.config")
+tag1Z = {
+    "element"    : "value",
+    "path"       : ".//constant[@name='Tagger1_Layer_1_Z']",
+    "default"    : "3.0",
+    "units"      : "mm",
+    "lower"      : "1.0",
+    "upper"      : "102.0",
+    "compact"    : "compact/far_backward/taggers.xml",
+    "stage"      : "sim",
+    "value_type" : "float",
+    "param_type" : "range"
+}
 
 # grab variables
-path2, type2, units2 = et.GetPathElementAndUnits(enable2)
-path3, type3, units3 = et.GetPathElementAndUnits(enable3)
+path1H, type1H, units1H = et.GetPathElementAndUnits(tag1H)
+path2W, type2W, units2W = et.GetPathElementAndUnits(tag2W)
+path1Z, type1Z, units1Z = et.GetPathElementAndUnits(tag1Z)
 
-print(f"[0][enable_staves_2] path = {path2}, type = {type2}, units = {units2}")
-print(f"[0][enable_staves_3] path = {path3}, type = {type3}, units = {units3}")
+print(f"[0][tagger1_height] path = {path1H}, type = {type1H}, units = {units1H}")
+print(f"[0][tagger2_width] path = {path2W}, type = {type2W}, units = {units2W}")
+print(f"[0][tagger1_layer1_z] path = {tag1Z}, type = {type1Z}, units = {units1Z}")
 
 try:
-    enable3 = et.GetParameter("eanble_satvse_3", "parameters.config")
+    tag2H = et.GetParameter("tgager2_hieght", "parameters.config")
 except:
-    print(f"[0][enable_staves_3] exception raised!")
+    print(f"[0][tagger2_height] exception raised!")
 finally:
-    print(f"[0][enable_staves_3] typo generated error as expected!")
+    print(f"[0][tagger2_height] typo generated error as expected!")
 
 # (1) Test GeometryEditor -----------------------------------------------------
 
 # create a geometry editor
-geditor1A = et.GeometryEditor("../configuration/run.config", "test1A")
-geditor1B = et.GeometryEditor("../configuration/run.config", "test1B")
-
-# copy geo source to run directories
-geditor1A.CopyGeoToRunDir()
-geditor1B.CopyGeoToRunDir()
+geditor = et.GeometryEditor("../configuration/run.config")
 
 # edit a couple parameters in one compact file
-geditor1A.EditCompact(enable2, 1, "test1A")
-geditor1A.EditCompact(enable3, 0, "test1A")
-print(f"[1][test A] set values of staves 2, 3 to 1, 0 respectively")
+geditor.EditCompact(tag1Z, 5.0, "test1A")
+geditor.EditCompact(tag1H, 147.5, "test1A")
+geditor.EditCompact(tag2W, 156.3, "test1A")
+print(f"[1][test A] set values of tagger 1 layer 1 z, tagger 1 height, tagger 2 width to 5.0 mm, 147.5 mm, 156.3 mm respectively")
 
-# now edit config files associated with
-# compact; the 2nd line should leave
-# config files unmodified
-geditor1A.EditRelatedFiles(enable2, "test1A")
-geditor1A.EditRelatedFiles(enable3, "test1A")
-print(f"[1][Test A] edited related files")
+# now create a config files associated with
+# compact; the 2nd line should leave the
+# config file unmodified
+configA = geditor.EditConfig(tag1H, "test1A")
+configA = geditor.EditConfig(tag2W, "test1A")
+print(f"[1][Test A] config file {configA} created")
 
-# create a 2nd compact file with multiple
-# subsystems modified
-enable5 = et.GetParameter("enable_staves_5", "../configuration/parameters.config")
-geditor1B.EditCompact(enable5, 1, "test1B")
-print(f"[1][test B] set value of stave 5 to 1")
+# grab/make additional parameters for
+# next test
+tag2H = et.GetParameter("tagger2_height", "../configuration/parameters.config")
+tag2Z = {
+    "element"    : "value",
+    "path"       : ".//constant[@name='Tagger2_Layer_2_Z']",
+    "default"    : "103.0",
+    "units"      : "mm",
+    "lower"      : "53",
+    "upper"      : "153.0",
+    "compact"    : "compact/far_backward/taggers.xml",
+    "stage"      : "sim",
+    "value_type" : "float",
+    "param_type" : "range"
+}
+bicLG = {
+    "element"    : "value",
+    "path"       : ".//constant[@name='EcalBarrel_LightGuide_length']",
+    "default"    : "5.0",
+    "units"      : "cm",
+    "lower"      : "1.0",
+    "upper"      : "9.0",
+    "compact"    : "compact/ecal/bic/bic.xml",
+    "stage"      : "sim",
+    "value_type" : "float",
+    "param_type" : "range"
+}
 
-# now edit all related config files
-geditor1B.EditRelatedFiles(enable5, "test1B")
-print(f"[1][test B] edited related files")
+# apply edits to compact files
+geditor.EditCompact(tag2H, 152.9, "test1B")
+geditor.EditCompact(tag2Z, 112.3, "test1B")
+geditor.EditCompact(bicLG, 7.0, "test1B")
+print(f"[1][Test B] set tagger 2 height to 152.9 mm, tagger 2 layer 2 z to 112.3 mm, and BIC light guide length to 7.0 cm")
+
+# and then recursively edit all
+# related files
+geditor.EditRelatedFiles(tag2H, "test1B")
+geditor.EditRelatedFiles(tag2Z, "test1B")
+geditor.EditRelatedFiles(bicLG, "test1B")
+print(f"[1][test B] recursively edited all files associated with tagger 2 height and BIC light guide")
 
 # (2) Test generators  --------------------------------------------------------
 
@@ -77,18 +120,20 @@ intest = "single_electron"
 inputs = enviro["sim_input"][intest]
 
 # try to create a simulation command
-dosimA = simgen.MakeCommand("test2A", intest, inputs["location"], "central.e5ele.py", inputs["type"])
-dosimB = simgen.MakeCommand("test2B", intest, inputs["location"], "central.e5ele.py", inputs["type"])
+dosimA = simgen.MakeCommand("test2A", intest, inputs["location"], "backward.e10ele.py", inputs["type"])
+dosimB = simgen.MakeCommand("test2B", intest, inputs["location"], "backward.e10ele.py", inputs["type"])
 print(f"[2][Test A] Created commands to do simulation:")
 print(f"  {dosimA}")
 print(f"  {dosimB}")
 
-# grab config name
-config = enviro["det_config"]
+# grab just the config names from
+# our previous test
+conPathA, conFileA = et.SplitPathAndFile(configA)
+conFileA = conFileA.replace(".xml", "")
 
 # now try to create a simulation driver script
-runsimA = simgen.MakeScript("test2A", intest, "central.e5ele.py", config, dosimA)
-runsimB = simgen.MakeScript("test2B", intest, "central.e5ele.py", config, dosimB)
+runsimA = simgen.MakeScript("test2A", intest, "backward.e10ele.py", conFileA, dosimA)
+runsimB = simgen.MakeScript("test2B", intest, "backward.e10ele.py", conFileA, dosimB)
 print(f"[2][Test B] created driver scripts for simulation:")
 print(f"  {runsimA}")
 print(f"  {runsimB}")
@@ -97,15 +142,15 @@ print(f"  {runsimB}")
 recgen = et.RecGenerator("../configuration/run.config")
 
 # try to create a reco command
-dorecA = recgen.MakeCommand("test2A", intest, "central.e5ele.py")
-dorecB = recgen.MakeCommand("test2B", intest, "central.e5ele.py")
+dorecA = recgen.MakeCommand("test2A", intest, "backward.e10ele.py")
+dorecB = recgen.MakeCommand("test2B", intest, "backward.e10ele.py")
 print(f"[2][Test C] Created commands to do reconstruction:")
 print(f"  {dorecA}")
 print(f"  {dorecB}")
 
 # and now try to create a reconstruction driver script
-runrecA = recgen.MakeScript("test2A", intest, "central.e5ele.py", config, dorecA)
-runrecB = recgen.MakeScript("test2B", intest, "central.e5ele.py", config, dorecB)
+runrecA = recgen.MakeScript("test2A", intest, "backward.e10ele.py", conFileA, dorecA)
+runrecB = recgen.MakeScript("test2B", intest, "backward.e10ele.py", conFileA, dorecB)
 print(f"[2][Test D] Created driver scripts for reconstruction:")
 print(f"  {runrecA}")
 print(f"  {runrecB}")
@@ -113,69 +158,51 @@ print(f"  {runrecB}")
 # create an ana generator
 anagen = et.AnaGenerator("../configuration/run.config", "../configuration/objectives.config")
 
-# recreate output name for input to
+# recreate output names for input to
 # test ana generator
-steeTag = et.ConvertSteeringToTag("central.e5ele.py")
-simOutA = et.MakeOutName("sim", "test2A", intest, steeTag)
-simOutB = et.MakeOutName("sim", "test2B", intest, steeTag)
-recOutA = et.MakeOutName("rec", "test2A", intest, steeTag)
-recOutB = et.MakeOutName("rec", "test2B", intest, steeTag)
-outDirA = enviro["out_path"] + "/test2A/" + recOutA
-outDirB = enviro["out_path"] + "/test2B/" + recOutB
+steeTag = et.ConvertSteeringToTag("backward.e10ele.py")
+simOutA = et.MakeOutName("test2A", intest, steeTag, "sim")
+simOutB = et.MakeOutName("test2B", intest, steeTag, "sim")
+recOutA = et.MakeOutName("test2A", intest, steeTag, "rec")
+recOutB = et.MakeOutName("test2B", intest, steeTag, "rec")
+simDirA = enviro["out_path"] + "/test2A/" + simOutA
+simDirB = enviro["out_path"] + "/test2B/" + simOutB
+recDirA = enviro["out_path"] + "/test2A/" + recOutA
+recDirB = enviro["out_path"] + "/test2B/" + recOutB
 
 # try to create an analysis command
-doanaA, ofileA = anagen.MakeCommand("test2A", intest, "eta_resolution_11", simOutA, recOutA)
-doanaB, ofileB = anagen.MakeCommand("test2B", intest, "eta_resolution_11", simOutB, recOutB)
+doanaA, ofileA = anagen.MakeCommand("test2A", intest, "TaggerOneResolution", simDirA, recDirA)
+doanaB, ofileB = anagen.MakeCommand("test2B", intest, "TaggerOneResolution", simDirB, recDirB)
 print(f"[2][Test E] Created commands to do analysis")
 print(f"  (A) command = {doanaA}")
 print(f"      output  = {ofileA}")
 print(f"  (B) command = {doanaB}")
 print(f"      output  = {ofileB}")
 
-# try to create an analysis script
-runanaA = anagen.MakeScript("test2A", intest, "eta_resolution_11", doanaA)
-runanaB = anagen.MakeScript("test2B", intest, "eta_resolution_11", doanaB)
+# and finally try to create an analysis script
+runanaA = anagen.MakeScript("test2A", intest, "TaggerOneResolution", doanaA)
+runanaB = anagen.MakeScript("test2B", intest, "TaggerOneResolution", doanaB)
 print(f"[2][Test F] Created driver scripts for analysis")
 print(f"  {runanaA}")
 print(f"  {runanaB}")
 
-# create geo editors and edit a few parameters
-geditor2A = et.GeometryEditor("../configuration/run.config", "test2A")
-geditor2B = et.GeometryEditor("../configuration/run.config", "test2B")
-geditor2A.CopyGeoToRunDir()
-geditor2B.CopyGeoToRunDir()
-geditor2A.EditCompact(enable2, 1, "test2A")
-geditor2A.EditCompact(enable3, 0, "test2A")
-geditor2A.EditRelatedFiles(enable2, "test2A")
-geditor2A.EditRelatedFiles(enable3, "test2A")
-geditor2B.EditCompact(enable5, 1, "test2B")
-geditor2B.EditRelatedFiles(enable5, "test2B")
-
-# now create scripts to build geo & check
-# overlaps
-rungeoA = geditor2A.MakeBuildScript("test2A", config)
-rungeoB = geditor2B.MakeBuildScript("test2B", config)
-print(f"[2][Test G] Created build scripts for geometry")
-print(f"  {rungeoA}")
-print(f"  {rungeoB}")
-
 # (3) Test trial manager ------------------------------------------------------
 
-# create a trial managers
+# create trial managers
 trimanA = et.TrialManager("../configuration/run.config",
-                           "../configuration/parameters.config",
-                           "../configuration/objectives.config",
-                           "test3A")
+                          "../configuration/parameters.config",
+                          "../configuration/objectives.config",
+                          "test3A")
 trimanB = et.TrialManager("../configuration/run.config",
                            "../configuration/parameters.config",
                            "../configuration/objectives.config")
 
 # create new parameters to test
 nupar3 = {
-    "enable_staves_2" : 1,
-    "enable_staves_3" : 0,
-    "enable_staves_5" : 1,
-    "enable_staves_6" : 1
+    "tagger1_width"  : 157.0,
+    "tagger1_height" : 234.0,
+    "tagger2_width"  : 143.0,
+    "tagger2_height" : 178.0
 }
 
 # make run script
@@ -183,7 +210,7 @@ dorun3A, ofiles3A = trimanA.MakeTrialScript(nupar3)
 print(f"[3][Test A] Created driver script for entire trial:")
 print(f"  script  = {dorun3A}")
 print(f"  outputs =")
-pprint.pprint(ofiles3A)
+pprint.pprint(ofiles3)
 
 # now try to make AND run an entire script
 trimanB.DoTrial(nupar3)
