@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # =============================================================================
-## @file   LowQ2LocalResolution.py
-#  @author Derek Anderson
-#  @date   10.06.2025
+## @file    LowQ2LocalResolution.py
+#  @authors Derek Anderson,
+#           Simon Gardner
+#  @date    10.06.2025
 # -----------------------------------------------------------------------------
 ## @brief Script to compute momentum resolution for a
 #    specified tagger
@@ -26,6 +27,10 @@ ISimDefault = "../backward.e10ele.edm4hep.root"
 IRecDefault = "../backward.e10ele.edm4eic.root"
 OutDefault  = "test_local_reso.root"
 TagDefault  = 1
+
+# =============================================================================
+# Momentum Resolution Calculation
+# =============================================================================
 
 def CalculateMomReso(
     sfile = ISimDefault,
@@ -121,6 +126,18 @@ def CalculateMomReso(
     fres.SetParameter(2, hres.GetRMS())
     hres.Fit(fres, "r")
 
+    # store output to dump later
+    output = {
+        "reso_fit_sigma"     : fres.GetParameter(2),
+        "reso_fit_sigma_err" : fres.GetParError(2),
+        "reso_fit_mean"      : fres.GetParameter(1),
+        "reso_fit_mean_err"  : fres.GetParError(1),
+        "reso_hist_rms"      : hres.GetRMS(),
+        "reso_hist_rms_err"  : hres.GetRMSError(),
+        "reso_hist_mean"     : np.abs(hres.GetMean()),
+        "reso_hist_mean_err" : np.abs(hres.GetMeanError()),
+    }
+
     # wrap up script ----------------------------------------------------------
 
     # save objects
@@ -129,31 +146,25 @@ def CalculateMomReso(
         out.WriteObject(fres, "fMomRes")
         out.Close()
 
-    # grab objective and other info
+    # extract specific objective(s) to return 
     #   - FIXME the local track momenta is *very* different from
     #     the electron momentum, so just use abs value of mean
     #     and RMS of %-diff for now
-    #reso = fres.GetParameter(2)
-    #eres = fres.GetParError(2)
-    #mean = fres.GetParameter(1)
-    #emea = fres.GetParError(1)
-    reso = hres.GetRMS()
-    eres = hres.GetRMSError()
-    mean = np.abs(hres.GetMean())
-    emea = np.abs(hres.GetMeanError())
+    objectives = {
+        f"{local_resolution_{tag}" : output["reso_hist_mean"],
+    }
 
-    # write them out to a text file for extraction later
-    otext = ofile.replace(".root", ".txt")
-    with open(otext, 'w') as out:
-        out.write(f"{reso}\n")
-        out.write(f"{eres}\n")
-        out.write(f"{mean}\n")
-        out.write(f"{emea}")
+    ojson = ofile.replace(".root", ".json")
+    with open(ojson, 'w') as out:
+        odata = output | objectives
+        json.dump(odata, out)
 
-    # and return calculated resolution
-    return reso
+    return objectives 
 
-# main ========================================================================
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
 
 if __name__ == "__main__":
 
