@@ -9,6 +9,7 @@
 #  TODO convert to use pytest
 # =============================================================================
 
+import json
 import subprocess
 import sys
 sys.path.append('../')
@@ -19,8 +20,8 @@ import objectives.LowQ2LocalResolution as lql
 # test 0: generate inputs -----------------------------------------------------
 
 # input file names for convenience
-ifSim = "backward.e10ele.edm4hep.root"
-ifRec = "backward.e10ele.edm4eic.root"
+ifSim = "backward.e18ele.edm4hep.root"
+ifRec = "backward.e18ele.edm4eic.root"
 
 subprocess.run(["../scripts/generate-input.sh", ifSim, ifRec])
 
@@ -46,22 +47,25 @@ print(f"  -- m2 local p resolution = {lo2_reso}")
 # test 1: extract objectives --------------------------------------------------
 
 # extract global resolution
-glo_reso_txt = None
-with open(ofGloRes.replace(".root", ".txt")) as oglo:
-    glo_reso_txt = float(oglo.read().splitlines()[0])
+glo_reso_json = None
+with open(ofGloRes.replace(".root", ".json")) as oglo:
+    glo_reso_data = json.load(oglo)
+    glo_reso_json = glo_reso_data["global_resolution"]
 
 # extract local resolutions
-lo1_reso_txt = None
-with open(ofLocRes1.replace(".root", ".txt")) as oloc1:
-    lo1_reso_txt = float(oloc1.read().splitlines()[0])
+lo1_reso_json = None
+with open(ofLocRes1.replace(".root", ".json")) as olo1:
+    lo1_reso_data = json.load(olo1)
+    lo1_reso_json = lo1_reso_data["local_resolution_1"]
 
-lo2_reso_txt = None
-with open(ofLocRes2.replace(".root", ".txt")) as oloc2:
-    lo2_reso_txt = float(oloc2.read().splitlines()[0])
+lo2_reso_json = None
+with open(ofLocRes2.replace(".root", ".json")) as olo2:
+    lo2_reso_data = json.load(olo2)
+    lo2_reso_json = lo2_reso_data["local_resolution_2"]
 
 print(f"[2] Extracted objectives:")
-print(f"  -- global p resolution   = {glo_reso_txt}, type = {type(glo_reso_txt)}")
-print(f"  -- m1 local p resolution = {lo1_reso_txt}, type = {type(lo1_reso_txt)}")
-print(f"  -- m2 local p resolution = {lo2_reso_txt}, type = {type(lo2_reso_txt)}")
+print(f"  -- global p resolution   = {glo_reso_json}, type = {type(glo_reso_json)}")
+print(f"  -- m1 local p resolution = {lo1_reso_json}, type = {type(lo1_reso_json)}")
+print(f"  -- m2 local p resolution = {lo2_reso_json}, type = {type(lo2_reso_json)}")
 
 # end =========================================================================

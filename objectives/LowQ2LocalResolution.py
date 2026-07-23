@@ -16,6 +16,7 @@
 # =============================================================================
 
 import argparse as ap
+import json
 import numpy as np
 import ROOT
 import sys
@@ -151,7 +152,7 @@ def CalculateMomReso(
     #     the electron momentum, so just use abs value of mean
     #     and RMS of %-diff for now
     objectives = {
-        f"{local_resolution_{tag}" : output["reso_hist_mean"],
+        f"local_resolution_{tag}" : output["reso_hist_mean"],
     }
 
     ojson = ofile.replace(".root", ".json")
