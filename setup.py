@@ -12,7 +12,7 @@ import setuptools
 setuptools.setup(
     name     = 'lowq2-mobo',
     version  = '0.0.0',
-    packages = ['EICMOBOTestTools', 'AID2ETestTools', 'objectives', 'interfaces']
+    packages = ['objectives']
 )
 
 # end =========================================================================
