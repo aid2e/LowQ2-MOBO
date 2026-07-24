@@ -20,8 +20,8 @@ from BICLowQ2 import EICTools as et
 # (0) Test ConfigParser -------------------------------------------------------
 
 # these should work
-tag1H = et.GetParameter("tagger1_height", "../configuration/parameters.config")
-tag2W = et.GetParameter("tagger2_width", "../configuration/parameters.config")
+tag1H = et.GetParameter("tagger1_height", "../examples/parameters_withConstraints.config")
+tag2W = et.GetParameter("tagger2_width", "../examples/parameters_withConstraints.config")
 tag1Z = {
     "element"    : "value",
     "path"       : ".//constant[@name='Tagger1_Layer_1_Z']",
@@ -71,7 +71,7 @@ print(f"[1][Test A] config file {configA} created")
 
 # grab/make additional parameters for
 # next test
-tag2H = et.GetParameter("tagger2_height", "../configuration/parameters.config")
+tag2H = et.GetParameter("tagger2_height", "../examples/parameters_withConstraints.config")
 tag2Z = {
     "element"    : "value",
     "path"       : ".//constant[@name='Tagger2_Layer_2_Z']",
@@ -190,11 +190,11 @@ print(f"  {runanaB}")
 
 # create trial managers
 trimanA = et.TrialManager("../configuration/run.config",
-                          "../configuration/parameters.config",
+                          "../examples/parameters_withConstraints.config",
                           "../configuration/objectives.config",
                           "test3A")
 trimanB = et.TrialManager("../configuration/run.config",
-                           "../configuration/parameters.config",
+                           "../examples/parameters_withConstraints.config",
                            "../configuration/objectives.config")
 
 # create new parameters to test
