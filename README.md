@@ -80,7 +80,7 @@ machine.  You can find instructions to do so [here](https://eic.github.io/tutori
 Before running, make sure you source one of the generated scripts
 in `./bin` to set appropriate environment variables:
 ```bash
-source .bin/this-mobo.sh
+source bin/this-mobo.sh
 ```
 
 Subsitute the appropriate script for your shell.  Note that these
