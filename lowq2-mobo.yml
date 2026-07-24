@@ -13,3 +13,13 @@ dependencies:
     - seaborn
     - wandb
     - botorch
+
+    # BIC/LowQ2 framework
+    - git+https://github.com/aid2e/BICLowQ2-framework.git
+
+    # Scheduler (base version without PanDA support)
+    - scheduler[slurm] @ git+https://github.com/aid2e/scheduler_epic.git
+
+    # Additional dependencies
+    - cloudpickle
+    - joblib

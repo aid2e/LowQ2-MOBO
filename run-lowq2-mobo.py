@@ -1,170 +1,103 @@
 # =============================================================================
 ## @file   run-lowq2-mobo.py
 #  @author Derek Anderson
-#  @date   09.25.2025
+#  @date   07.23.2026
 # -----------------------------------------------------------------------------
 ## @brief Main executable and wrapper script for
 #    running the LowQ2-MOBO problem.
 # =============================================================================
 
-import argparse
-import os
-import pickle
+def RunObjectives(tag = None, **kwargs):
+    """RunObjectives
 
-from ax.generation_strategy.generation_node import GenerationStep
-from ax.generation_strategy.generation_strategy import GenerationStrategy
-from ax.modelbridge.registry import Generators
-from ax.service.ax_client import AxClient
-from ax.service.utils.report_utils import exp_to_df
-from scheduler import AxScheduler, JobLibRunner, SlurmRunner
+    Runs trial (simulation, reconstruction,
+    and all analyses) for provided set of
+    updated parameters.
 
-import AID2ETestTools as att
-import EICMOBOTestTools as emt
-import interfaces as itf
+    Args:
+      tag:    tag associated with trial
+      kwargs: any keyword arguments (e.g. parameterization)
+    Returns:
+      dictionary of objectives and their values
+    """
+    # NB use lazy importing to make sure
+    # dependencies get picked up
+    import json
+    import os
+    from BICLowQ2 import AID2ETools as at
+    from BICLowQ2 import EICTools as et
+
+    # grab paths to config files
+    run_path, exp_path, par_path, obj_path = at.GetConfigPaths()
+
+    # create trial manager
+    trial = et.TrialManager(run_path, par_path, obj_path, tag)
+
+    # create and run script
+    oFiles = trial.DoTrial(kwargs)
+
+    # extract relevant objectives
+    #   --> (should be in associated
+    #       json files)
+    objectives = dict()
+    for obj, file in oFiles.items():
+        oJson = file.replace(".root", ".json")
+        oVal  = None
+        if os.path.isfile(oJson):
+            with open(oJson, 'r') as out:
+                oDat = json.load(out)
+                oVal = oDat[obj]
+            objectives[obj] = oVal
+
+    # return dictionary of objectives
+    return objectives
 
 def main(*args, **kwargs):
     """main
 
-    Wrapper to run LowQ2-MOBO. The model
-    and generation strategy are saved
-    to both JSON and CSV files (model)
-    and pickle files (generation) for
-    downstream analysis.
+    Wrapper to run BIC-MOBO. Can be run in
+    3 modes, set with the -b or -w options:
 
-    User can specify which runner to use
-    with the -r option:
+     default -- with Ax and in a single monitoring job
+       >>> python new-run.py
+
+     waves -- with Ax over a sequence of monitoring jobs
+       >>> python new-run.py -w
+
+    In the default mode, user can specify which runner
+    to use with the -r option:
 
       joblib -- use joblib runner (default)
       slurm  -- use slurm runner
       panda  -- use panda runner (TODO)
 
+    User can also specify an Ax experiment
+    to load with the -x option, or override
+    which configuration files to use with the
+    -u, -e, -p, -o, -s, -t options as detailed
+    below.
+
     Args:
-      -r: specify runner (optional)
+      -w: run in waves
+      -r: specify runner
+      -x: specify experiment to load
+      -u: specify a run config to use
+      -e: specify an experiment/problem config to use
+      -p: specify a parameter config to use
+      -o: specify an objective config to use
+      -s: specify an environment script to source
+      -t: specify a SLURM template to use
     """
+    from BICLowQ2 import AID2ETools as at
 
-    # set up arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-r", "--runner", help = "Runner type", nargs = '?', const = 1, type = str, default = "joblib")
-
-    # grab arguments
-    args = parser.parse_args()    
-
-    # extract path to script being run currently
-    #   - FIXME this should get automated!
-    main_path, main_file = emt.SplitPathAndFile(
-        os.path.realpath(__file__)
-    )
-    run_path = main_path + "/configuration/run.config"
-    exp_path = main_path + "/configuration/problem.config"
-    par_path = main_path + "/configuration/parameters.config"
-    obj_path = main_path + "/configuration/objectives.config"
-
-    # load relevant config files
-    cfg_run = emt.ReadJsonFile(run_path)
-    cfg_exp = emt.ReadJsonFile(exp_path)
-    cfg_par = emt.ReadJsonFile(par_path)
-    cfg_obj = emt.ReadJsonFile(obj_path)
-
-    # translate parameter, objective options
-    # into ax-compliant ones
-    ax_pars, ax_par_cons = att.ConvertParamConfig(cfg_par)
-    ax_objs, ax_obj_cons = att.ConvertObjectConfig(cfg_obj)
-
-    # define generation strategy to use
-    gstrat = GenerationStrategy(
-        steps = [
-            GenerationStep(
-                model = Generators.SOBOL,
-                num_trials = cfg_exp["n_sobol"],
-                min_trials_observed = cfg_exp["min_sobol"],
-                max_parallelism = cfg_exp["n_sobol"]
-            ),
-            GenerationStep(
-                model = Generators.BOTORCH_MODULAR,
-                num_trials = -1,
-                max_parallelism = cfg_exp["max_parallel_gen"]
-            )
-        ]
-    )
-
-    # create ax client
-    ax_client = AxClient(
-        generation_strategy = gstrat,
-        enforce_sequential_optimization = False
-    )
-    ax_client.create_experiment(
-        name = cfg_exp["problem_name"],
-        parameters = ax_pars,
-        objectives = ax_objs,
-        parameter_constraints = ax_par_cons
-    )
-
-    # extract scheduler-specific options
-    cfg_sched = cfg_run["scheduler_opts"]
-
-    # set up runners
-    runner = None
-    match args.runner:
-        case "joblib":
-            runner = JobLibRunner(
-                n_jobs = cfg_sched["n_jobs"],
-                config = {
-                    'tmp_dir' : cfg_run["run_path"]
-                }
-            )
-        case "slurm":
-            runner = SlurmRunner(
-                partition     = cfg_sched["partition"],
-                time_limit    = cfg_sched["time_limit"],
-                memory        = cfg_sched["memory"],
-                cpus_per_task = cfg_sched["cpus_per_task"],
-                config        = {
-                    'sbatch_options' : {
-                        'account'   : cfg_sched["account"],
-                        'mail-user' : cfg_sched["mail-user"],
-                        'mail-type' : cfg_sched["mail-type"],
-                        'output'    : cfg_run["log_path"],
-                        'error'     : cfg_run["log_path"]
-                    }
-                }
-            )
-        case _:
-            raise ValueError("Unknown runner specified!")
-
-    # set up scheduler
-    scheduler = AxScheduler(
-        ax_client,
-        runner,
-        config = {
-            'job_output_dir' : cfg_exp["OUTPUT_DIR"],
-        }
-    )
-    scheduler.set_objective_function(itf.RunObjectives)
-
-    # run and report best parameters
-    best = scheduler.run_optimization(max_trials = cfg_exp["n_max_trials"])
-    print("Optimization complete! Best parameters:\n", best)
-
-    # create paths to output files
-    oPathBase = cfg_exp["OUTPUT_DIR"] + "/" + cfg_exp["problem_name"]
-    oPathCSV  = oPathBase + "_exp_out.csv"
-    oPathJson = oPathBase + "_exp_out.json"
-    oPathPikl = oPathBase + "_gen_out.pkl"
-
-    # grab experiment and generation strategy
-    # for output
-    exp   = ax_client._experiment
-    gen   = ax_client._generation_strategy
-    dfExp = exp_to_df(exp)
-
-    # save outcomes and experiment
-    # for downstream analysis
-    dfExp.to_csv(oPathCSV)
-    ax_client.save_to_json_file(oPathJson)
-    with open(oPathPikl, 'wb') as file:
-        pickle.dump(gen.model, file)
+    options = at.ParseArguments()
+    client  = at.BICLowQ2Client(options, RunObjectives)
+    if options.waves:
+        client.Waves(__file__)
+    else:
+        client.Run()
 
 if __name__ == "__main__":
-   main()
+    main()
 
-# end =========================================================================
+# end ========================================================================

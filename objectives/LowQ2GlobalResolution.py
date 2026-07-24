@@ -8,10 +8,13 @@
 #    particles reconstructed by the Low-Q2 tagger(s).
 #
 #  Usage if executed directly:
-#    ./LowQ2RecoResolution.py -i <input file> -o <output file>
+#    ./LowQ2RecoResolution.py \
+#        -i <input file> \
+#        -o <output file>
 # =============================================================================
 
 import argparse as ap
+import json
 import numpy as np
 import ROOT
 import sys
@@ -21,6 +24,10 @@ from podio.reading import get_reader
 # default arguments
 IFileDefault = "../backward.e10ele.edm4eic.root"
 OFileDefault = "test_global_reso.root"
+
+# =============================================================================
+# Momentum Resolution Calculation
+# =============================================================================
 
 def CalculateMomReso(
     ifile = IFileDefault, 
@@ -87,6 +94,14 @@ def CalculateMomReso(
     fres.SetParameter(2, hres.GetRMS())
     hres.Fit(fres, "r")
 
+    # store output to dump later
+    output = {
+        "reso_fit_sigma"     : fres.GetParameter(2),
+        "reso_fit_sigma_err" : fres.GetParError(2),
+        "reso_fit_mean"      : fres.GetParameter(1),
+        "reso_fit_mean_err"  : fres.GetParError(1),
+    }
+
     # wrap up script ----------------------------------------------------------
 
     # save objects
@@ -95,24 +110,22 @@ def CalculateMomReso(
         out.WriteObject(fres, "fMomRes")
         out.Close()
 
-    # grab objective and other info
-    reso = fres.GetParameter(2)
-    eres = fres.GetParError(2)
-    mean = fres.GetParameter(1)
-    emea = fres.GetParError(1)
+    # extract specific objective(s) to return
+    objectives = {
+        f"global_resolution" : output["reso_fit_sigma"],
+    }
 
-    # write them out to a text file for extraction later
-    otext = ofile.replace(".root", ".txt")
-    with open(otext, 'w') as out:
-        out.write(f"{reso}\n")
-        out.write(f"{eres}\n")
-        out.write(f"{mean}\n")
-        out.write(f"{emea}")
+    ojson = ofile.replace(".root", ".json")
+    with open(ojson, 'w') as out:
+        odata = output | objectives
+        json.dump(odata, out)
 
-    # and return calculated resolution
-    return fres.GetParameter(2)
+    return objectives
 
-# main ========================================================================
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
 
 if __name__ == "__main__":
 

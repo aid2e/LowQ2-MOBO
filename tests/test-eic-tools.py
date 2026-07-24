@@ -13,15 +13,15 @@ import pprint
 import sys
 sys.path.append('../')
 
-import EICMOBOTestTools as emt
+from BICLowQ2 import EICTools as et
 
 
 
 # (0) Test ConfigParser -------------------------------------------------------
 
 # these should work
-tag1H = emt.GetParameter("tagger1_height", "../configuration/parameters.config")
-tag2W = emt.GetParameter("tagger2_width", "../configuration/parameters.config")
+tag1H = et.GetParameter("tagger1_height", "../examples/parameters_withConstraints.config")
+tag2W = et.GetParameter("tagger2_width", "../examples/parameters_withConstraints.config")
 tag1Z = {
     "element"    : "value",
     "path"       : ".//constant[@name='Tagger1_Layer_1_Z']",
@@ -36,16 +36,16 @@ tag1Z = {
 }
 
 # grab variables
-path1H, type1H, units1H = emt.GetPathElementAndUnits(tag1H)
-path2W, type2W, units2W = emt.GetPathElementAndUnits(tag2W)
-path1Z, type1Z, units1Z = emt.GetPathElementAndUnits(tag1Z)
+path1H, type1H, units1H = et.GetPathElementAndUnits(tag1H)
+path2W, type2W, units2W = et.GetPathElementAndUnits(tag2W)
+path1Z, type1Z, units1Z = et.GetPathElementAndUnits(tag1Z)
 
 print(f"[0][tagger1_height] path = {path1H}, type = {type1H}, units = {units1H}")
 print(f"[0][tagger2_width] path = {path2W}, type = {type2W}, units = {units2W}")
 print(f"[0][tagger1_layer1_z] path = {tag1Z}, type = {type1Z}, units = {units1Z}")
 
 try:
-    tag2H = emt.GetParameter("tgager2_hieght", "parameters.config")
+    tag2H = et.GetParameter("tgager2_hieght", "parameters.config")
 except:
     print(f"[0][tagger2_height] exception raised!")
 finally:
@@ -54,7 +54,7 @@ finally:
 # (1) Test GeometryEditor -----------------------------------------------------
 
 # create a geometry editor
-geditor = emt.GeometryEditor("../configuration/run.config")
+geditor = et.GeometryEditor("../configuration/run.config")
 
 # edit a couple parameters in one compact file
 geditor.EditCompact(tag1Z, 5.0, "test1A")
@@ -71,7 +71,7 @@ print(f"[1][Test A] config file {configA} created")
 
 # grab/make additional parameters for
 # next test
-tag2H = emt.GetParameter("tagger2_height", "../configuration/parameters.config")
+tag2H = et.GetParameter("tagger2_height", "../examples/parameters_withConstraints.config")
 tag2Z = {
     "element"    : "value",
     "path"       : ".//constant[@name='Tagger2_Layer_2_Z']",
@@ -114,8 +114,8 @@ print(f"[1][test B] recursively edited all files associated with tagger 2 height
 
 # create a sim generator and parse enviroment
 # config for easy use
-simgen = emt.SimGenerator("../configuration/run.config")
-enviro = emt.ReadJsonFile("../configuration/run.config")
+simgen = et.SimGenerator("../configuration/run.config")
+enviro = et.ReadJsonFile("../configuration/run.config")
 intest = "single_electron"
 inputs = enviro["sim_input"][intest]
 
@@ -128,7 +128,7 @@ print(f"  {dosimB}")
 
 # grab just the config names from
 # our previous test
-conPathA, conFileA = emt.SplitPathAndFile(configA)
+conPathA, conFileA = et.SplitPathAndFile(configA)
 conFileA = conFileA.replace(".xml", "")
 
 # now try to create a simulation driver script
@@ -139,7 +139,7 @@ print(f"  {runsimA}")
 print(f"  {runsimB}")
 
 # create a rec generator
-recgen = emt.RecGenerator("../configuration/run.config")
+recgen = et.RecGenerator("../configuration/run.config")
 
 # try to create a reco command
 dorecA = recgen.MakeCommand("test2A", intest, "backward.e10ele.py")
@@ -156,15 +156,15 @@ print(f"  {runrecA}")
 print(f"  {runrecB}")
 
 # create an ana generator
-anagen = emt.AnaGenerator("../configuration/run.config", "../configuration/objectives.config")
+anagen = et.AnaGenerator("../configuration/run.config", "../configuration/objectives.config")
 
 # recreate output names for input to
 # test ana generator
-steeTag = emt.ConvertSteeringToTag("backward.e10ele.py")
-simOutA = emt.MakeOutName("test2A", intest, steeTag, "sim")
-simOutB = emt.MakeOutName("test2B", intest, steeTag, "sim")
-recOutA = emt.MakeOutName("test2A", intest, steeTag, "rec")
-recOutB = emt.MakeOutName("test2B", intest, steeTag, "rec")
+steeTag = et.ConvertSteeringToTag("backward.e10ele.py")
+simOutA = et.MakeOutName("test2A", intest, steeTag, "sim")
+simOutB = et.MakeOutName("test2B", intest, steeTag, "sim")
+recOutA = et.MakeOutName("test2A", intest, steeTag, "rec")
+recOutB = et.MakeOutName("test2B", intest, steeTag, "rec")
 simDirA = enviro["out_path"] + "/test2A/" + simOutA
 simDirB = enviro["out_path"] + "/test2B/" + simOutB
 recDirA = enviro["out_path"] + "/test2A/" + recOutA
@@ -188,11 +188,14 @@ print(f"  {runanaB}")
 
 # (3) Test trial manager ------------------------------------------------------
 
-# create a trial manager
-triman = emt.TrialManager("../configuration/run.config",
-                          "../configuration/parameters.config",
+# create trial managers
+trimanA = et.TrialManager("../configuration/run.config",
+                          "../examples/parameters_withConstraints.config",
                           "../configuration/objectives.config",
-                          "test3")
+                          "test3A")
+trimanB = et.TrialManager("../configuration/run.config",
+                           "../examples/parameters_withConstraints.config",
+                           "../configuration/objectives.config")
 
 # create new parameters to test
 nupar3 = {
@@ -203,10 +206,14 @@ nupar3 = {
 }
 
 # make run script
-dorun3, ofiles3 = triman.MakeTrialScript(nupar3)
-print(f"[3] Created driver script for entire trial:")
-print(f"  script  = {dorun3}")
+dorun3A, ofiles3A = trimanA.MakeTrialScript(nupar3)
+print(f"[3][Test A] Created driver script for entire trial:")
+print(f"  script  = {dorun3A}")
 print(f"  outputs =")
 pprint.pprint(ofiles3)
+
+# now try to make AND run an entire script
+trimanB.DoTrial(nupar3)
+print("[3][Test B] Created and ran entire trial")
 
 # end =========================================================================
