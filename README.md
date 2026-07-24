@@ -9,22 +9,24 @@ parameters and objectives. These tages are listed below.
 
 ### Steps:
 
-- [ ] Set up initial objective script, configuration files with 2
-      parameters: tagger 1 width and height
-- [ ] Run optimization with these 2 parameters
-- [ ] Expand parameters to include tagger 2 width and height, positions
-      of the taggers, and relative positions between tracking disks
-- [ ] Add (x, Q2) coverage and cost as objectives and rerun
-- [ ] Expand parameters to include tilt of tracking disks, and rerun
-      optimization
+- [ ] Set up repo for optimization of linear tracking weights
+- [ ] Optimize linear tracking weights against local track resolution for
+    - [ ] Tagger 1
+    - [ ] Tagger 2
+- [ ] Add parameter config for optimization of tracker disk `z` positions
+- [ ] Optimize tagger 1, 2 tracker disk `z` positions against local track resolution simultaneously
+- [ ] Add electron efficiency and NN-retraining to objectives, full tracker disk position parameters
+- [ ] Optimize tagger 1, 2 disk `z` positions against global track resolution simultaneoulsy (incl. NN-retraining)
+- [ ] Optimize tagger 1, 2 disk `(x,y,z)` positions against track resolution and efficiency
 
 ## Dependencies
 
 - Python 3.11.5
+- Matplotlib
+- Numpy
 - Conda or Mamba (eg. via [Miniforge](https://github.com/conda-forge/miniforge)) 
-- [Ax](https://ax.dev)
 - [EIC Software](https://eic.github.io)
-- [AID2E Scheduler](https://github.com/aid2e/scheduler_epic)
+- [BIC/LowQ2 framework](https://github.com/aid2e/BICLowQ2-framework)
 
 ## Code organization
 
@@ -33,19 +35,14 @@ This repository is structured like so:
   | File/Directory | Description |
   |----------------|-------------|
   | `lowq2-mobo.yml` | conda/mamba environment file |
-  | `create-environment` | script to create lowq2-mobo conda/mamba environment |
-  | `remove-environment` | script to remove lowq2-mobo conda/mamba environment |
+  | `environment.py` | script to create/remove lowq2-mobo conda/mamba environment |
   | `run-lowq2-mobo.py` | wrapper script and point-of-entry to the problem |
-  | `launch-mobo` | script to launch a slurm pilot job |
   | `configurations` | collects various configuration files that define the problem |
   | `objectives` | collects analysis scripts to calculate objectives for optimize for |
   | `steering` | collects steering/macro files for running simulations |
-  | `interfaces` | collects code to interface the framework with objective scripts or other external code |
   | `examples` | collects of example config files, scripts, etc. for illustrating some of the extended functionality |
   | `scripts` | collects various scripts useful for running, testing, etc. |
   | `tests` | collects test scripts for unit tests |
-  | `EICMOBOTestTools` | a python package which consolidates various tools for interfacing with the EIC software stack |
-  | `AID2ETestTools` | a python package which consolidates various tools for interfacing with Ax |
 
 There are four configuration files which define the parameters of the problem.
 
@@ -62,7 +59,7 @@ Before beginning, please make sure conda and/or mamba is installed. Once
 ready, the environment for the problem can be set up via:
 
 ```bash
-./create-environment
+./environment.py --create
 ```
 
 And activated via `conda`
@@ -72,17 +69,7 @@ conda activate lowq2-mobo
 
 At any point, this environment can be deleted with
 ```bash
-./remove-environment
-```
-
-Then, install the [AID2E scheduler](https://github.com/aid2e/scheduler_epic)
-following the instructions in its repository. Remember to configure the
-scheduler appropriately if you're going to run with SLURM, PanDA, etc.
-
-Install the local utilities/objectives by running
-the command below in this directory:
-```bash
-pip install -e .
+./environment.py --remove
 ```
 
 Lastly, you'll need to make sure the `eic-shell` is available on your
@@ -90,34 +77,55 @@ machine.  You can find instructions to do so [here](https://eic.github.io/tutori
 
 ## Running the framework
 
-Before beginning, create a local installation of [the ePIC geometry
-description](https://github.com/eic/epic) and compile it:
+Before running, make sure you source one of the generated scripts
+in `./bin` to set appropriate environment variables:
+```bash
+source .bin/this-mobo.sh
+```
+
+Subsitute the appropriate script for your shell.  Note that these
+can be modified to point to other config files as needed.  For
+example, if you wanted to run with a different parameter file
+you could modify the scripts such that:
+```bash
+export PAR_CFG=$THIS_MOBO/configuration/different_parameters.config
+```
+
+(Modify as needed for the other scripts) These can also be changed
+at runtime using the options described [here](https://github.com/aid2e/BICLowQ2-framework/blob/main/src/BICLowQ2/AID2ETools/OptionParser.py#L84).
+
+Then, create a local installation of [the ePIC geometry description](https://github.com/eic/epic):
 ```bash
 cd <where-the-geo-goes>
 git clone git@github.com:eic/epic.git
-cd epic
-cmake -B build -S . -DCMAKE_INSTALL_PREFIX=install
-cmake --build build
-cmake --install build
 ```
 
-Then, modify `configurations/run.config` so that the paths point to your
-installations and relevent scripts, eg.
+Then, modify `configurations/run.config` accordingly so that the paths point to your
+installations and relevent scripts, e.g.
 ```json
-{
-    "_comment"   : "Configures runtime options, and paths to EIC software components",
-    "out_path"   : "<where-the-output-goes>",
-    "run_path"   : "<where-the-running-happens>",
-    "log_path"   : "<where-the-logs-go>",
-    "eic_shell"  : "<path-to-your-script>/eic-shell",
-    "epic_setup" : "<where-the-geo-goes>/epic/install/bin/thisepic.sh",
-    "det_path"   : "<where-the-geo-goes>/epic/install/share/epic",
-    "det_config" : "epic_ip6_extended",
-    "sim_exec"   : "npsim",
-    "sim_input"  : {
+    "_comment"      : "Configures runtime options, and paths to EIC software components",
+    "conda"         : "<path-to-your-script>/conda.sh", # <<< for example /home/<username>/.miniforge3/etc/profile.d
+    "environment"   : "lowq2-mobo",
+    "out_path"      : "$THIS_MOBO/out",
+    "run_path"      : "$THIS_MOBO/run",
+    "log_path"      : "$THIS_MOBO/log",
+    "eic_shell"     : "<path-to-your-script>/eic-shell", # <<< wherever you installed your eic-shell
+    "overlap_check" : "checkOverlaps",
+    "epic_setup"    : "$THIS_MOBO/epic/install/bin/thisepic.sh", # <<< might need to adjust
+    "det_path"      : "$THIS_MOBO/epic/install/share/epic", # <<< might need to adjust
+    "cmake_path"    : "$THIS_MOBO/epic", # <<< might need to adjust
+    "det_path"      : "$THIS_MOBO/epic/install/share/epic", # <<< might need to adjust
+    "det_config"    : "epic_ip6_extended",
+    "sim_exec"      : "npsim",
+    "sim_input"     : {
         "single_electron" : {
-            "location" : "<where-the-mobo-goes>/LowQ2-MOBO/steering/electron",
-            "type"     : "gun"
+            "location" : "$THIS_MOBO/steering/electron",
+            "type"     : "gps"
+        },
+        "pythia6" : {
+            "_comment" : "currently unused",
+            "location" : "$THIS_MOBO/steering/pythia",
+            "type"     : "hepmc"
         }
     },
     "rec_exec"    : "eicrecon",
@@ -129,74 +137,31 @@ installations and relevent scripts, eg.
         "TaggerTrackerM2LocalTracks",
         "TaggerTrackerReconstructedParticles"
     ],
-    "scheduler_opts" : {
-        "n_jobs"        : -1,
-        "partition"     : "<your-partition>",
-        "time_limit"    : "03:00:00",
-        "memory"        : "8G",
-        "cpus_per_task" : 4,
-        "account"       : "<your-account>",
-        "mail-user"     : "<your-email-address>",
-        "mail-type"     : "END,FAIL"
-    }
-}
+    "sched_n_jobs"        : 1,
+    "monitoring_interval" : 30
 
 ```
 
-Where the angle brackets should be replaced with the appropriate
-absolute paths. The values `det_path` and `det_config` should be
-what `echo $DETECTOR_PATH` and `echo $DETECTOR_CONFIG` return after
-sourcing your installation of the geometry.
+Notice the `$THIS_MOBO` variable: this points to the directory holding the
+`bin/this-mobo.*` scripts.  It can be used to specify paths relative to
+the directory the wrapper script is in.
 
-And finally, modify `configurations/problem.config` and
-`configurations/objectives.config` to make sure the
-Ax output is placed in the appropriate directory and the code is
-picking up the correct objective scripts, eg.
-```json
-{
-    "_comment"         : "Configures problem for Ax",
-    "name"             : "Low-Q2 Optimization",
-    "problem_name"     : "lowq2_mobo",
-    "OUTPUT_DIR"       : "<where-the-output-goes>/out",
-    "n_sobol"          : 2,
-    "min_sobol"        : 2,
-    "max_parallel_gen" : 2,
-    "n_max_trials"     : 5
-}
-```
+Once appropriately configured, the optimization can be run in 3 modes:
+1. Locally with Joblib
+2. Remotely with a single Slurm monitoring job
+3. Remotely in waves with a sequence of Slurm monitoring jobs.
 
-```json
-{
-    "_comment"   : "Configure objectives to optimize for",
-    "objectives" : {
-        "TaggerOneResolution" : {
-            "input" : "single_electron",
-            "path"  : "<where-the-mobo-goes>/LowQ2-MOBO/objectives",
-            "exec"  : "LowQ2LocalResolution.py",
-            "rule"  : "python <EXEC> -i <RECO> -o <OUTPUT> -t 1",
-            "stage" : "ana",
-            "goal"  : "minimize"
-        }
-    }
-}
-```
-
-Once appropriately configured, the optimizationc can be run locally
-with:
+**(1) Local Running:**
 ```bash
 python run-lowq2-mobo.py
 ```
 
-It can also be run via Slurm using the script `launch-mobo`, which
-dispatches a pilot job.  Update the slurm options accordingly, and
-launch the job with:
+**(2) Single Monitoring Job Running:**
 ```bash
-sbatch launch-mobo
+python run-lowq2-mobo.py -l
 ```
 
-Various analyses can be run on the optimization output with the
-script `run-analyses.py`.  After updating the appropariate paths/options
-in the script, do:
+**(3) Multi-Monitoring Job Running:**
 ```bash
-python run-analyses.py
+python run-lowq2-mobo.py -w
 ```
