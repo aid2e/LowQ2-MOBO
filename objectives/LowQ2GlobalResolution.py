@@ -120,7 +120,7 @@ def CalculateMomReso(
         odata = output | objectives
         json.dump(odata, out)
 
-    return objectives 
+    return objectives
 
 
 # =============================================================================

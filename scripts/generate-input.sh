@@ -13,8 +13,8 @@
 #       test.edm4eic.root
 # ===============================================
 
-out_sim="backward.e18ele.edm4hep.root"
-out_rec="backward.e18ele.edm4eic.root"
+out_sim=$1
+out_rec=$2
 
 npsim --compactFile $DETECTOR_PATH/epic_ip6_extended.xml --enableG4GPS --steeringFile ../steering/electron/backward.e18ele.py --macroFile ../steering/electron/backward.e18ele.mac --outputFile $out_sim
 
