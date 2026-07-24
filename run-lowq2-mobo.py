@@ -58,18 +58,20 @@ def main(*args, **kwargs):
     Wrapper to run BIC-MOBO. Can be run in
     3 modes, set with the -b or -w options:
 
-     default -- with Ax and in a single monitoring job
-       >>> python new-run.py
+     default -- with Ax and locally
+       >>> python run-lowq2-mobo.py
+
+     launch -- with Ax over a single slurm job
+       >>> python run-lowq2-mobo.py
 
      waves -- with Ax over a sequence of monitoring jobs
-       >>> python new-run.py -w
+       >>> python run-lowq2-mobo.py -w
 
     In the default mode, user can specify which runner
     to use with the -r option:
 
       joblib -- use joblib runner (default)
       slurm  -- use slurm runner
-      panda  -- use panda runner (TODO)
 
     User can also specify an Ax experiment
     to load with the -x option, or override
@@ -78,7 +80,8 @@ def main(*args, **kwargs):
     below.
 
     Args:
-      -w: run in waves
+      -w: run in waves of jobs
+      -l: run in one job
       -r: specify runner
       -x: specify experiment to load
       -u: specify a run config to use
@@ -94,6 +97,8 @@ def main(*args, **kwargs):
     client  = at.BICLowQ2Client(options, RunObjectives)
     if options.waves:
         client.Waves(__file__)
+    elif options.launch:
+        client.Launch(__file__)
     else:
         client.Run()
 
