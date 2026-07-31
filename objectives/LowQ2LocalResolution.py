@@ -147,12 +147,19 @@ def CalculateMomReso(
         out.WriteObject(fres, "fMomRes")
         out.Close()
 
+    # if abs(rms) is less than epsilon, something is off so set
+    # objective to giant number
+    absreso   = np.abs(output["reso_hist_rms"])
+    objective = output["reso_hist_mean"]
+    if absreso < np.finfo(np.float64).eps:
+        objective = 999.0
+
     # extract specific objective(s) to return 
     #   - FIXME the local track momenta is *very* different from
     #     the electron momentum, so just use abs value of mean
     #     and RMS of %-diff for now
     objectives = {
-        f"local_resolution_{tag}" : output["reso_hist_mean"],
+        f"local_resolution_{tag}" : objective,
     }
 
     ojson = ofile.replace(".root", ".json")
