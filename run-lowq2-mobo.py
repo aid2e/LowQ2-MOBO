@@ -52,6 +52,34 @@ def RunObjectives(tag = None, **kwargs):
     # return dictionary of objectives
     return objectives
 
+def BuildListOfParams():
+    """BuildListOfParams
+
+    Helper function to build a list of parameterizations
+    to manually sample the LowQ2-MOBO design space.
+
+    Returns:
+      list of parameterizations formatted as dictionaries:
+        >>> [{'param_a': 0, 'param_b': 1, ...}, ...]
+    """
+    params = []
+    for weight1 in range(1, 3):
+        for weight2 in range(1, 3):
+            for weight3 in range(1, 3):
+                for weight4 in range(1, 3):
+                    weight1 = weight1 / 2.0
+                    weight2 = weight2 / 2.0
+                    weight3 = weight3 / 2.0
+                    weight4 = weight4 / 2.0
+                    param   = {
+                        'tagger1_layer1_weight1': weight1,
+                        'tagger1_layer1_weight2': weight2,
+                        'tagger1_layer1_weight3': weight3,
+                        'tagger1_layer1_weight4': weight4,
+                    }
+                    params.append(param)
+    return params
+
 def main(*args, **kwargs):
     """main
 
@@ -67,6 +95,9 @@ def main(*args, **kwargs):
      waves -- with Ax over a sequence of monitoring jobs
        >>> python run-lowq2-mobo.py -w
 
+     brute -- manually sample design space
+       >>> python run-lowq2-mobo.py -b
+
     In the default mode, user can specify which runner
     to use with the -r option:
 
@@ -80,6 +111,7 @@ def main(*args, **kwargs):
     below.
 
     Args:
+      -b: run in brute mode
       -w: run in waves of jobs
       -l: run in one job
       -r: specify runner
@@ -95,7 +127,9 @@ def main(*args, **kwargs):
 
     options = at.ParseArguments()
     client  = at.BICLowQ2Client(options, RunObjectives)
-    if options.waves:
+    if options.brute:
+        client.Brute(BuildListOfParams(), __file__)
+    elif options.waves:
         client.Waves(__file__)
     elif options.launch:
         client.Launch(__file__)
