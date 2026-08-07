@@ -62,15 +62,12 @@ def BuildListOfParams():
       list of parameterizations formatted as dictionaries:
         >>> [{'param_a': 0, 'param_b': 1, ...}, ...]
     """
+    values = [0.5, 1.0]
     params = []
-    for weight1 in range(1, 3):
-        for weight2 in range(1, 3):
-            for weight3 in range(1, 3):
-                for weight4 in range(1, 3):
-                    weight1 = weight1 / 2.0
-                    weight2 = weight2 / 2.0
-                    weight3 = weight3 / 2.0
-                    weight4 = weight4 / 2.0
+    for weight1 in values:
+        for weight2 in values:
+            for weight3 in values:
+                for weight4 in values:
                     param   = {
                         'tagger1_layer1_weight1': weight1,
                         'tagger1_layer1_weight2': weight2,
