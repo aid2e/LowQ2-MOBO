@@ -5,6 +5,6 @@
 /gps/pos/sigma_x 0.119 mm
 /gps/pos/sigma_y 0.0107 mm
 /gps/particle e-
-/gps/energy 18 GeV
+/gps/energy 5 GeV
 
 /run/beamOn 1000
